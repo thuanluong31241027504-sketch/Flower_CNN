@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance
 import onnxruntime as ort
 import os
 
@@ -79,28 +79,18 @@ st.markdown('<div class="main-title">flower recognition<span class="blinking-cur
 
 MODEL_FILE = "flowerpro.onnx"
 
-# Kiểm tra file model có tồn tại không
-if not os.path.exists(MODEL_FILE):
-    st.error(f"❌ Không tìm thấy file model: {MODEL_FILE}")
-    st.info("Vui lòng upload file flowerpro.onnx vào thư mục gốc")
-    st.stop()
-
-# Load model ONNX
 @st.cache_resource
 def load_model():
-    try:
-        session = ort.InferenceSession(MODEL_FILE)
-        return session
-    except Exception as e:
-        st.error(f"Lỗi load model: {e}")
-        return None
+    if os.path.exists(MODEL_FILE):
+        return ort.InferenceSession(MODEL_FILE)
+    return None
 
 session = load_model()
 
 if session is None:
+    st.error("flowerpro.onnx not found")
     st.stop()
 
-# Lấy thông tin input của model
 input_info = session.get_inputs()[0]
 input_shape = input_info.shape
 target_size = (input_shape[1], input_shape[2])
@@ -137,12 +127,21 @@ FLOWER_INFO = {
 }
 
 def preprocess_image(img):
-    """Tiền xử lý ảnh đúng chuẩn cho model"""
+    """Xu ly anh dung chuan voi khi train"""
+    # Chuyen sang RGB
     if img.mode == 'RGBA':
         img = img.convert('RGB')
+    
+    # Resize dung kich thuoc model yeu cau
     img = img.resize(target_size)
-    img_array = np.array(img).astype(np.float32) / 255.0
+    
+    # Chuyen sang array va chuan hoa
+    img_array = np.array(img).astype(np.float32)
+    img_array = img_array / 255.0  # Normalize ve [0,1]
+    
+    # Them batch dimension
     img_array = np.expand_dims(img_array, axis=0)
+    
     return img_array
 
 col_left, col_right = st.columns([0.5, 0.5])
@@ -156,14 +155,13 @@ with col_left:
         st.image(img, width=250)
         
         if st.button("predict"):
-            # Tiền xử lý ảnh
+            # Xu ly anh
             img_array = preprocess_image(img)
             
-            # Dự đoán với model ONNX
+            # Du doan voi model ONNX
             input_name = input_info.name
             predictions = session.run(None, {input_name: img_array})[0][0]
             
-            # Hiển thị kết quả
             st.markdown("---")
             st.markdown("xac suat tung loai hoa")
             for i, name in enumerate(DISPLAY_NAMES):
@@ -201,4 +199,4 @@ with col_right:
             """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("version 1.0 | flower recognition cnn | ONNX model")
+st.caption("version 1.0 | flower recognition cnn")
