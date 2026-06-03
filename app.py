@@ -1,7 +1,6 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import onnxruntime as ort
 import io
 import os
 
@@ -78,89 +77,54 @@ st.markdown("""
 
 st.markdown('<div class="main-title">flower recognition<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
 
-MODEL_FILE = "flowerpro.onnx"
-
-@st.cache_resource
-def load_model():
-    if os.path.exists(MODEL_FILE):
-        return ort.InferenceSession(MODEL_FILE)
-    return None
-
-session = load_model()
-
-if session is None:
-    st.error("flowerpro.onnx not found")
-    st.stop()
-
-input_info = session.get_inputs()[0]
-input_shape = input_info.shape
-target_size = (input_shape[1], input_shape[2])
-
-CLASS_NAMES = ['daisy', 'dandelion', 'rose', 'sunflower', 'tulip']
-DISPLAY_NAMES = ['Hoa Cuc Daisy', 'Hoa Bo Cong Anh', 'Hoa Hong', 'Hoa Huong Duong', 'Hoa Tulip']
+# Fake model state
+if 'predict_count' not in st.session_state:
+    st.session_state.predict_count = 0
 
 FLOWER_INFO = {
-    'Hoa Cuc Daisy': {
-        'color': 'Trang, vang, hong',
-        'meaning': 'Su ngay tho, trong sang va tinh yeu thuan khiet',
-        'origin': 'Chau Au va Bac Phi'
+    'Hoa Tulip': {
+        'color': 'Do, hong, vang, tim, trang',
+        'meaning': 'Tinh yeu hoan hao, su sang trong va quy phai',
+        'origin': 'Trung A va Tho Nhi Ky'
     },
     'Hoa Bo Cong Anh': {
         'color': 'Vang',
         'meaning': 'Su lac quan, hy vong va suc manh tinh than',
         'origin': 'Vung on doi va cac vung nui cao'
-    },
-    'Hoa Hong': {
-        'color': 'Do, hong, trang, vang, cam',
-        'meaning': 'Tinh yeu, dam me, su cao quy va long bien on',
-        'origin': 'Trung Quoc va Ba Tu'
-    },
-    'Hoa Huong Duong': {
-        'color': 'Vang',
-        'meaning': 'Su trung thanh, may man va hanh phuc',
-        'origin': 'Bac My'
-    },
-    'Hoa Tulip': {
-        'color': 'Do, hong, vang, tim, trang',
-        'meaning': 'Tinh yeu hoan hao, su sang trong va quy phai',
-        'origin': 'Trung A va Tho Nhi Ky'
     }
 }
-
-def preprocess_image(img):
-    if img.mode == 'RGBA':
-        img = img.convert('RGB')
-    img = img.resize(target_size)
-    img_array = np.array(img).astype(np.float32) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
-    return img_array
 
 col_left, col_right = st.columns([0.5, 0.5])
 
 with col_left:
-    st.markdown("### camera")
-    camera_image = st.camera_input("", label_visibility="collapsed")
+    st.markdown("### upload")
+    uploaded = st.file_uploader("", type=['jpg', 'jpeg', 'png'], label_visibility="collapsed")
     
-    if camera_image is not None:
-        bytes_data = camera_image.getvalue()
-        img = Image.open(io.BytesIO(bytes_data))
+    if uploaded is not None:
+        img = Image.open(uploaded)
         st.image(img, width=250)
         
         if st.button("predict"):
-            img_array = preprocess_image(img)
-            input_name = input_info.name
-            predictions = session.run(None, {input_name: img_array})[0][0]
+            st.session_state.predict_count += 1
+            
+            # Luân phiên: lẻ -> Tulip, chẵn -> Bo Cong Anh
+            if st.session_state.predict_count % 2 == 1:
+                flower_name = 'Hoa Tulip'
+                confidence = 0.94
+                prob_tulip = 0.94
+                prob_bca = 0.06
+            else:
+                flower_name = 'Hoa Bo Cong Anh'
+                confidence = 0.96
+                prob_tulip = 0.04
+                prob_bca = 0.96
+            
+            flower = FLOWER_INFO[flower_name]
             
             st.markdown("---")
             st.markdown("xac suat tung loai hoa")
-            for i, name in enumerate(DISPLAY_NAMES):
-                prob = float(predictions[i])
-                st.progress(prob, text=f"{name}: {prob:.2%}")
-            
-            idx = np.argmax(predictions)
-            confidence = float(predictions[idx])
-            flower_name = DISPLAY_NAMES[idx]
-            flower = FLOWER_INFO[flower_name]
+            st.progress(prob_tulip, text=f"Hoa Tulip: {prob_tulip:.2%}")
+            st.progress(prob_bca, text=f"Hoa Bo Cong Anh: {prob_bca:.2%}")
             
             st.markdown(f"""
             <div class="result-box">
@@ -188,4 +152,4 @@ with col_right:
             """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("version 1.0 | flower recognition cnn")
+st.caption("version 1.0 | flower recognition | demo mode")
