@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import onnxruntime as ort
+import keras
 import os
 
 st.set_page_config(
@@ -66,54 +66,26 @@ st.markdown("""
     hr {
         border-color: #ff69b450;
     }
-    
-    .result-box {
-        border: 1px solid #ff69b4;
-        padding: 20px;
-        margin-top: 20px;
-        background-color: #ffffff;
-    }
-    
-    .flower-card {
-        border: 1px solid #ff69b4;
-        padding: 12px;
-        margin-bottom: 10px;
-        background-color: #fffafc;
-    }
-    
-    .flower-name {
-        color: #ff69b4;
-        font-size: 0.9rem;
-        font-weight: bold;
-        margin-bottom: 8px;
-    }
-    
-    .flower-desc {
-        color: #333333;
-        font-size: 0.7rem;
-        line-height: 1.5;
-    }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="main-title">> flower recognition<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
 
-MODEL_FILE = "flowerpro.onnx"
+MODEL_FILE = "flower.keras"
 
 @st.cache_resource
 def load_model():
     if os.path.exists(MODEL_FILE):
-        return ort.InferenceSession(MODEL_FILE)
+        return keras.models.load_model(MODEL_FILE)
     return None
 
-session = load_model()
+model = load_model()
 
-if session is None:
-    st.error("> flowerpro.onnx not found")
+if model is None:
+    st.error("> flower.keras not found")
     st.stop()
 
-input_info = session.get_inputs()[0]
-input_shape = input_info.shape
+input_shape = model.input_shape
 target_size = (input_shape[1], input_shape[2])
 
 CLASS_NAMES = ['daisy', 'dandelion', 'rose', 'sunflower', 'tulip']
@@ -156,67 +128,52 @@ FLOWER_INFO = {
     }
 }
 
-col_left, col_right = st.columns([0.5, 0.5])
+st.markdown("""
+> nhan dien 5 loai hoa pho bien
+> buoc 1: chon file anh
+> buoc 2: nhan nut predict
+> buoc 3: xem ket qua
+""")
 
-with col_left:
-    st.markdown("### > upload")
-    uploaded = st.file_uploader("", type=['jpg', 'jpeg', 'png'], label_visibility="collapsed")
-    
-    if uploaded:
-        image = Image.open(uploaded)
-        st.image(image, width=280)
-        
-        if image.mode == 'RGBA':
-            image = image.convert('RGB')
-        
-        image = image.resize(target_size)
-        img_array = np.array(image).astype(np.float32) / 255.0
-        img_array = np.expand_dims(img_array, axis=0)
-        
-        if st.button("> predict"):
-            input_name = input_info.name
-            predictions = session.run(None, {input_name: img_array})[0][0]
-            
-            idx = np.argmax(predictions)
-            confidence = float(predictions[idx])
-            flower_key = CLASS_NAMES[idx]
-            flower = FLOWER_INFO[flower_key]
-            
-            st.markdown("---")
-            st.markdown(f"### > {flower['name']}")
-            st.caption(f"confidence: {confidence:.2%}")
-            
-            st.markdown("---")
-            st.markdown("> thong tin chi tiet")
-            st.write(f"nguon goc: {flower['origin']}")
-            st.write(f"mau sac: {flower['color']}")
-            st.write(f"y nghia: {flower['meaning']}")
-            st.write(f"dac diem: {flower['characteristic']}")
-            
-            st.markdown("---")
-            st.markdown("> top 5 du doan")
-            top5_idx = np.argsort(predictions)[-5:][::-1]
-            for i, idx in enumerate(top5_idx, 1):
-                prob = float(predictions[idx])
-                name = FLOWER_INFO[CLASS_NAMES[idx]]['name']
-                st.progress(prob, text=f"{i}. {name} - {prob:.2%}")
+uploaded = st.file_uploader("", type=['jpg', 'jpeg', 'png'], label_visibility="collapsed")
 
-with col_right:
-    st.markdown("### > thu vien hoa")
-    st.caption("5 loai hoa duoc ho tro")
+if uploaded:
+    image = Image.open(uploaded)
+    st.image(image, width=280)
     
-    for flower_key in CLASS_NAMES:
+    if image.mode == 'RGBA':
+        image = image.convert('RGB')
+    
+    image = image.resize(target_size)
+    img_array = np.array(image).astype(np.float32) / 255.0
+    img_array = np.expand_dims(img_array, axis=0)
+    
+    if st.button("> predict"):
+        predictions = model.predict(img_array, verbose=0)[0]
+        
+        idx = np.argmax(predictions)
+        confidence = float(predictions[idx])
+        flower_key = CLASS_NAMES[idx]
         flower = FLOWER_INFO[flower_key]
-        with st.expander(f"> {flower['name']}"):
-            st.markdown(f"""
-            <div class="flower-card">
-                <div class="flower-name">{flower['name']}</div>
-                <div class="flower-desc"><b>nguon goc:</b> {flower['origin']}</div>
-                <div class="flower-desc"><b>mau sac:</b> {flower['color']}</div>
-                <div class="flower-desc"><b>y nghia:</b> {flower['meaning']}</div>
-                <div class="flower-desc"><b>dac diem:</b> {flower['characteristic']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.markdown(f"### > {flower['name']}")
+        st.caption(f"confidence: {confidence:.2%}")
+        
+        st.markdown("---")
+        st.markdown("> thong tin chi tiet")
+        st.write(f"nguon goc: {flower['origin']}")
+        st.write(f"mau sac: {flower['color']}")
+        st.write(f"y nghia: {flower['meaning']}")
+        st.write(f"dac diem: {flower['characteristic']}")
+        
+        st.markdown("---")
+        st.markdown("> top 5")
+        top5_idx = np.argsort(predictions)[-5:][::-1]
+        for i, idx in enumerate(top5_idx, 1):
+            prob = float(predictions[idx])
+            name = FLOWER_INFO[CLASS_NAMES[idx]]['name']
+            st.progress(prob, text=f"{i}. {name} - {prob:.2%}")
 
 st.markdown("---")
 st.caption("> version 1.0 | flower recognition cnn")
