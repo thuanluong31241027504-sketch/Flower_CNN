@@ -10,7 +10,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS (giống app món ăn)
+# Custom CSS
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
@@ -74,6 +74,12 @@ st.markdown("""
         color: #666666;
         font-family: 'Courier New', monospace;
     }
+    
+    .streamlit-expanderHeader {
+        background-color: #f5f5f5;
+        border: 1px solid #000000;
+        border-radius: 0px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -102,11 +108,11 @@ if session is None:
 # Lấy input shape từ model
 input_info = session.get_inputs()[0]
 input_shape = input_info.shape
-target_size = (input_shape[1], input_shape[2])
+target_size = (input_shape[1], input_shape[2])  # (128, 128)
 
 # App introduction
 st.markdown("""
-> nhan dien cac loai hoa pho bien
+> nhan dien 5 loai hoa pho bien
 > su dung mo hinh CNN voi do chinh xac cao
 > tai anh bat ky de nhan dien ngay
 """)
@@ -118,15 +124,16 @@ st.markdown("""
 > buoc 3: xem ket qua va do tin cay
 """)
 
-# Flower data (THAY THEO ĐÚNG CLASS CỦA MODEL BẠN)
-# Bạn cần xem model flower.h5 có bao nhiêu class và tên gì
-FLOWER_DATA = {
-    'Hoa Hong': 'Hoa hồng - Biểu tượng của tình yêu, cánh mềm mại, nhiều màu sắc',
-    'Hoa Cuc': 'Hoa cúc - Tượng trưng cho sự trường thọ, cánh vàng rực rỡ',
-    'Hoa Lan': 'Hoa lan - Thanh cao, quý phái, có nhiều loại đẹp',
-    'Hoa Sen': 'Hoa sen - Quốc hoa Việt Nam, tượng trưng cho sự thanh cao',
-    'Hoa Mai': 'Hoa mai - Nở vào dịp Tết, màu vàng tươi sáng'
-    # THÊM CÁC LOẠI HOA KHÁC TÙY THEO MODEL
+# Flower names - từ model của bạn
+CLASS_NAMES = ['Daisy', 'Dandelion', 'Roses', 'Sunflower', 'Tulips']
+
+# Mô tả cho từng loại hoa (tiếng Việt)
+FLOWER_DESCRIPTIONS = {
+    'Daisy': 'Hoa cúc Daisy - Cánh trắng tinh khôi, nhụy vàng, tượng trưng cho sự ngây thơ và trong sáng',
+    'Dandelion': 'Bồ công anh - Cánh hoa vàng rực, khi già thành những chùm lông trắng bay theo gió',
+    'Roses': 'Hoa hồng - Biểu tượng của tình yêu, cánh mềm mại, có nhiều màu sắc khác nhau',
+    'Sunflower': 'Hoa hướng dương - Luôn hướng về phía mặt trời, tượng trưng cho sự lạc quan và niềm tin',
+    'Tulips': 'Hoa tulip - Sang trọng và kiêu sa, có nhiều màu sắc đẹp mắt'
 }
 
 # Layout
@@ -143,7 +150,9 @@ with col_left:
         if image.mode == 'RGBA':
             image = image.convert('RGB')
         
+        # Resize về đúng kích thước model yêu cầu (128x128)
         image = image.resize(target_size)
+        
         img_array = np.array(image).astype(np.float32) / 255.0
         img_array = np.expand_dims(img_array, axis=0)
         
@@ -153,25 +162,29 @@ with col_left:
             
             idx = np.argmax(predictions[0])
             confidence = float(predictions[0][idx])
-            flower_name = list(FLOWER_DATA.keys())[idx]
+            flower_name = CLASS_NAMES[idx]
             
             st.markdown(f"### > {flower_name}")
             st.caption(f"confidence: {confidence:.2%}")
+            
+            st.markdown("> description")
+            st.write(FLOWER_DESCRIPTIONS.get(flower_name, 'Mô tả đang được cập nhật'))
             
             st.markdown("> top 5")
             top5_idx = np.argsort(predictions[0])[-5:][::-1]
             for i, idx in enumerate(top5_idx, 1):
                 prob = float(predictions[0][idx])
-                name = list(FLOWER_DATA.keys())[idx]
+                name = CLASS_NAMES[idx]
                 st.progress(prob, text=f"{i}. {name} - {prob:.2%}")
 
 with col_right:
     st.markdown("### > supported classes")
-    st.caption("cac loai hoa duoc ho tro | cuon de xem chi tiet")
+    st.caption("5 loai hoa duoc ho tro | cuon de xem chi tiet")
     
     with st.container():
-        for i, (flower, desc) in enumerate(FLOWER_DATA.items()):
-            with st.expander(f"{i+1:02d}. {flower}"):
+        for i, flower in enumerate(CLASS_NAMES, 1):
+            desc = FLOWER_DESCRIPTIONS.get(flower, 'Mô tả đang được cập nhật')
+            with st.expander(f"{i:02d}. {flower}"):
                 st.caption(desc)
 
 st.markdown("""
