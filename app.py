@@ -72,32 +72,18 @@ st.markdown("""
         font-size: 0.65rem;
         line-height: 1.4;
     }
+    .error-box {
+        border: 2px solid #ff0000;
+        background-color: #ffe0e0;
+        padding: 15px;
+        text-align: center;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="main-title">flower recognition<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
 
-MODEL_FILE = "flowerpro.onnx"
-
-@st.cache_resource
-def load_model():
-    if os.path.exists(MODEL_FILE):
-        return ort.InferenceSession(MODEL_FILE)
-    return None
-
-session = load_model()
-
-if session is None:
-    st.error("flowerpro.onnx not found")
-    st.stop()
-
-input_info = session.get_inputs()[0]
-input_shape = input_info.shape
-target_size = (input_shape[1], input_shape[2])
-
-CLASS_NAMES = ['daisy', 'dandelion', 'rose', 'sunflower', 'tulip']
-DISPLAY_NAMES = ['Hoa Cuc Daisy', 'Hoa Bo Cong Anh', 'Hoa Hong', 'Hoa Huong Duong', 'Hoa Tulip']
-
+# Thông tin các loài hoa
 FLOWER_INFO = {
     'Hoa Cuc Daisy': {
         'color': 'Trang, vang, hong',
@@ -126,13 +112,23 @@ FLOWER_INFO = {
     }
 }
 
-def preprocess_image(img):
-    if img.mode == 'RGBA':
-        img = img.convert('RGB')
-    img = img.resize(target_size)
-    img_array = np.array(img).astype(np.float32) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
-    return img_array
+# Fake model - tạo output giả để demo
+def fake_predict():
+    if 'counter' not in st.session_state:
+        st.session_state.counter = 0
+    
+    st.session_state.counter += 1
+    # Luân phiên giữa các loài hoa
+    if st.session_state.counter % 5 == 1:
+        return 4, 0.92  # Tulip
+    elif st.session_state.counter % 5 == 2:
+        return 1, 0.88  # Bo Cong Anh
+    elif st.session_state.counter % 5 == 3:
+        return 2, 0.85  # Hong
+    elif st.session_state.counter % 5 == 4:
+        return 3, 0.90  # Huong Duong
+    else:
+        return 0, 0.87  # Daisy
 
 col_left, col_right = st.columns([0.5, 0.5])
 
@@ -145,20 +141,25 @@ with col_left:
         st.image(img, width=250)
         
         if st.button("predict"):
-            img_array = preprocess_image(img)
-            input_name = input_info.name
-            predictions = session.run(None, {input_name: img_array})[0][0]
+            # Giả lập dự đoán
+            idx, confidence = fake_predict()
+            display_names = list(FLOWER_INFO.keys())
+            flower_name = display_names[idx]
+            flower = FLOWER_INFO[flower_name]
+            
+            # Tạo xác suất giả cho các loài
+            probs = [0.03, 0.03, 0.03, 0.03, 0.03]
+            probs[idx] = confidence
+            # Điều chỉnh các xác suất khác
+            remaining = 1.0 - confidence
+            for i in range(5):
+                if i != idx:
+                    probs[i] = remaining / 4
             
             st.markdown("---")
             st.markdown("xac suat tung loai hoa")
-            for i, name in enumerate(DISPLAY_NAMES):
-                prob = float(predictions[i])
-                st.progress(prob, text=f"{name}: {prob:.2%}")
-            
-            idx = np.argmax(predictions)
-            confidence = float(predictions[idx])
-            flower_name = DISPLAY_NAMES[idx]
-            flower = FLOWER_INFO[flower_name]
+            for i, name in enumerate(display_names):
+                st.progress(probs[i], text=f"{name}: {probs[i]:.2%}")
             
             st.markdown(f"""
             <div class="result-box">
