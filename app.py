@@ -73,6 +73,26 @@ st.markdown("""
         margin-top: 20px;
         background-color: #ffffff;
     }
+    
+    .flower-card {
+        border: 1px solid #ff69b4;
+        padding: 12px;
+        margin-bottom: 10px;
+        background-color: #fffafc;
+    }
+    
+    .flower-name {
+        color: #ff69b4;
+        font-size: 0.9rem;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+    
+    .flower-desc {
+        color: #333333;
+        font-size: 0.7rem;
+        line-height: 1.5;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -96,16 +116,44 @@ input_info = session.get_inputs()[0]
 input_shape = input_info.shape
 target_size = (input_shape[1], input_shape[2])
 
-# Thứ tự class theo model (index 1 là dandelion)
 CLASS_NAMES = ['daisy', 'dandelion', 'rose', 'sunflower', 'tulip']
 
-# Thông tin chi tiết về các loài hoa
 FLOWER_INFO = {
-    'daisy': {'name': 'Hoa Cúc', 'color': 'Trắng, vàng', 'meaning': 'Sự ngây thơ, trong sáng'},
-    'dandelion': {'name': 'Bồ Công Anh', 'color': 'Vàng', 'meaning': 'Lạc quan, hy vọng'},
-    'rose': {'name': 'Hoa Hồng', 'color': 'Đỏ, hồng, trắng', 'meaning': 'Tình yêu, đam mê'},
-    'sunflower': {'name': 'Hoa Hướng Dương', 'color': 'Vàng', 'meaning': 'Trung thành, may mắn'},
-    'tulip': {'name': 'Hoa Tulip', 'color': 'Đỏ, hồng, tím', 'meaning': 'Tình yêu hoàn hảo'}
+    'daisy': {
+        'name': 'Hoa Cuc Daisy',
+        'origin': 'Chau Au va Bac Phi',
+        'color': 'Trang, vang, hong',
+        'meaning': 'Su ngay tho, trong sang va tinh yeu thuan khiet',
+        'characteristic': 'Canh hoa mong manh, nhan hoa vang tuoi, thuong moc thanh cum'
+    },
+    'dandelion': {
+        'name': 'Hoa Bo Cong Anh',
+        'origin': 'Vung on doi va cac vung nui cao',
+        'color': 'Vang',
+        'meaning': 'Su lac quan, hy vong va suc manh tinh than',
+        'characteristic': 'Hoa vang rucc, khi gia se chuyen thanh chum long trang bay theo gio'
+    },
+    'rose': {
+        'name': 'Hoa Hong',
+        'origin': 'Trung Quoc va Ba Tu',
+        'color': 'Do, hong, trang, vang, cam',
+        'meaning': 'Tinh yeu, dam me, su cao quy va long bien on',
+        'characteristic': 'Canh hoa xep lop, huong thom dac trung, co gai tren canh'
+    },
+    'sunflower': {
+        'name': 'Hoa Huong Duong',
+        'origin': 'Bac My',
+        'color': 'Vang',
+        'meaning': 'Su trung thanh, may man va hanh phuc',
+        'characteristic': 'Hoa lon huong ve phia mat troi, hat co the ep lay dau'
+    },
+    'tulip': {
+        'name': 'Hoa Tulip',
+        'origin': 'Trung A va Tho Nhi Ky',
+        'color': 'Do, hong, vang, tim, trang',
+        'meaning': 'Tinh yeu hoan hao, su sang trong va quy phai',
+        'characteristic': 'Hoa hinh chuoc, canh day va mem, la hinh thon dai'
+    }
 }
 
 col_left, col_right = st.columns([0.5, 0.5])
@@ -139,31 +187,36 @@ with col_left:
             st.caption(f"confidence: {confidence:.2%}")
             
             st.markdown("---")
-            st.markdown("> thong tin hoa")
-            st.write(f"**mau sac:** {flower['color']}")
-            st.write(f"**y nghia:** {flower['meaning']}")
+            st.markdown("> thong tin chi tiet")
+            st.write(f"nguon goc: {flower['origin']}")
+            st.write(f"mau sac: {flower['color']}")
+            st.write(f"y nghia: {flower['meaning']}")
+            st.write(f"dac diem: {flower['characteristic']}")
             
             st.markdown("---")
-            st.markdown("> top 5")
+            st.markdown("> top 5 du doan")
             top5_idx = np.argsort(predictions)[-5:][::-1]
             for i, idx in enumerate(top5_idx, 1):
                 prob = float(predictions[idx])
                 name = FLOWER_INFO[CLASS_NAMES[idx]]['name']
                 st.progress(prob, text=f"{i}. {name} - {prob:.2%}")
-            
-            # Cảnh báo nếu model không chắc chắn
-            if confidence < 0.7:
-                st.warning("⚠️ do tin cay thap, co the can chup lai anh ro hon")
 
 with col_right:
-    st.markdown("### > flower library")
-    st.caption("5 loai hoa pho bien")
+    st.markdown("### > thu vien hoa")
+    st.caption("5 loai hoa duoc ho tro")
     
     for flower_key in CLASS_NAMES:
         flower = FLOWER_INFO[flower_key]
-        with st.expander(f"🌸 {flower['name']}"):
-            st.write(f"**mau sac:** {flower['color']}")
-            st.write(f"**y nghia:** {flower['meaning']}")
+        with st.expander(f"> {flower['name']}"):
+            st.markdown(f"""
+            <div class="flower-card">
+                <div class="flower-name">{flower['name']}</div>
+                <div class="flower-desc"><b>nguon goc:</b> {flower['origin']}</div>
+                <div class="flower-desc"><b>mau sac:</b> {flower['color']}</div>
+                <div class="flower-desc"><b>y nghia:</b> {flower['meaning']}</div>
+                <div class="flower-desc"><b>dac diem:</b> {flower['characteristic']}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
 st.markdown("---")
 st.caption("> version 1.0 | flower recognition cnn")
