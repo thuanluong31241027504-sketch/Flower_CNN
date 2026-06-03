@@ -73,26 +73,6 @@ st.markdown("""
         margin-top: 20px;
         background-color: #ffffff;
     }
-    
-    .flower-card {
-        border: 1px solid #ff69b4;
-        padding: 15px;
-        margin-bottom: 10px;
-        background-color: #fffafc;
-    }
-    
-    .flower-name {
-        color: #ff69b4;
-        font-size: 1rem;
-        font-weight: bold;
-        margin-bottom: 5px;
-    }
-    
-    .flower-desc {
-        color: #333333;
-        font-size: 0.7rem;
-        line-height: 1.4;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -116,43 +96,18 @@ input_info = session.get_inputs()[0]
 input_shape = input_info.shape
 target_size = (input_shape[1], input_shape[2])
 
-# Thông tin chi tiết về các loài hoa
-FLOWER_INFO = {
-    'daisy': {
-        'name': 'Hoa Cúc',
-        'color': 'Trắng, vàng',
-        'meaning': 'Tượng trưng cho sự ngây thơ, trong sáng và tình yêu thuần khiết',
-        'season': 'Mùa xuân - hạ'
-    },
-    'dandelion': {
-        'name': 'Hoa Bồ Công Anh',
-        'color': 'Vàng',
-        'meaning': 'Biểu tượng của sự lạc quan, hy vọng và sức mạnh tinh thần',
-        'season': 'Mùa xuân - thu'
-    },
-    'rose': {
-        'name': 'Hoa Hồng',
-        'color': 'Đỏ, hồng, trắng, vàng',
-        'meaning': 'Tình yêu, đam mê và sự lãng mạn',
-        'season': 'Quanh năm'
-    },
-    'sunflower': {
-        'name': 'Hoa Hướng Dương',
-        'color': 'Vàng',
-        'meaning': 'Sự trung thành, may mắn và hạnh phúc',
-        'season': 'Mùa hè'
-    },
-    'tulip': {
-        'name': 'Hoa Tulip',
-        'color': 'Đỏ, hồng, vàng, tím',
-        'meaning': 'Tình yêu hoàn hảo, sang trọng và quý phái',
-        'season': 'Mùa xuân'
-    }
-}
-
+# Thứ tự class theo model (index 1 là dandelion)
 CLASS_NAMES = ['daisy', 'dandelion', 'rose', 'sunflower', 'tulip']
 
-# Layout 2 cột
+# Thông tin chi tiết về các loài hoa
+FLOWER_INFO = {
+    'daisy': {'name': 'Hoa Cúc', 'color': 'Trắng, vàng', 'meaning': 'Sự ngây thơ, trong sáng'},
+    'dandelion': {'name': 'Bồ Công Anh', 'color': 'Vàng', 'meaning': 'Lạc quan, hy vọng'},
+    'rose': {'name': 'Hoa Hồng', 'color': 'Đỏ, hồng, trắng', 'meaning': 'Tình yêu, đam mê'},
+    'sunflower': {'name': 'Hoa Hướng Dương', 'color': 'Vàng', 'meaning': 'Trung thành, may mắn'},
+    'tulip': {'name': 'Hoa Tulip', 'color': 'Đỏ, hồng, tím', 'meaning': 'Tình yêu hoàn hảo'}
+}
+
 col_left, col_right = st.columns([0.5, 0.5])
 
 with col_left:
@@ -187,7 +142,6 @@ with col_left:
             st.markdown("> thong tin hoa")
             st.write(f"**mau sac:** {flower['color']}")
             st.write(f"**y nghia:** {flower['meaning']}")
-            st.write(f"**mua:** {flower['season']}")
             
             st.markdown("---")
             st.markdown("> top 5")
@@ -196,6 +150,10 @@ with col_left:
                 prob = float(predictions[idx])
                 name = FLOWER_INFO[CLASS_NAMES[idx]]['name']
                 st.progress(prob, text=f"{i}. {name} - {prob:.2%}")
+            
+            # Cảnh báo nếu model không chắc chắn
+            if confidence < 0.7:
+                st.warning("⚠️ do tin cay thap, co the can chup lai anh ro hon")
 
 with col_right:
     st.markdown("### > flower library")
@@ -204,14 +162,8 @@ with col_right:
     for flower_key in CLASS_NAMES:
         flower = FLOWER_INFO[flower_key]
         with st.expander(f"🌸 {flower['name']}"):
-            st.markdown(f"""
-            <div class="flower-card">
-                <div class="flower-name">{flower['name']}</div>
-                <div class="flower-desc"><b>mau sac:</b> {flower['color']}</div>
-                <div class="flower-desc"><b>y nghia:</b> {flower['meaning']}</div>
-                <div class="flower-desc"><b>mua:</b> {flower['season']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.write(f"**mau sac:** {flower['color']}")
+            st.write(f"**y nghia:** {flower['meaning']}")
 
 st.markdown("---")
 st.caption("> version 1.0 | flower recognition cnn")
