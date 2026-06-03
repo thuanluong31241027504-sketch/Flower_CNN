@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import tensorflow as tf
+import onnxruntime as ort
 import os
 
 st.set_page_config(
@@ -54,33 +54,28 @@ st.markdown("""
     .stButton > button:hover {
         background-color: #333333 !important;
     }
-    
-    .result-box {
-        border: 1px solid #000000;
-        padding: 20px;
-        margin-top: 20px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<h1>> flower recognition<span class="blinking-cursor">_</span></h1>', unsafe_allow_html=True)
 
-# Load model
+MODEL_PATH = "flowerpro.onnx"
+
 @st.cache_resource
 def load_model():
-    interpreter = tf.lite.Interpreter(model_path="flowerpro.tflite")
-    interpreter.allocate_tensors()
-    return interpreter
+    if os.path.exists(MODEL_PATH):
+        return ort.InferenceSession(MODEL_PATH)
+    return None
 
-try:
-    interpreter = load_model()
-    input_details = interpreter.get_input_details()
-    output_details = interpreter.get_output_details()
-    target_size = (input_details[0]['shape'][1], input_details[0]['shape'][2])
-    st.success("> model loaded")
-except:
-    st.error("> model not found")
+session = load_model()
+
+if session is None:
+    st.error("> flowerpro.onnx not found")
     st.stop()
+
+input_info = session.get_inputs()[0]
+input_shape = input_info.shape
+target_size = (input_shape[1], input_shape[2])
 
 CLASS_NAMES = ['daisy', 'dandelion', 'rose', 'sunflower', 'tulip']
 
@@ -105,21 +100,20 @@ if uploaded:
     img_array = np.expand_dims(img_array, axis=0)
     
     if st.button("> predict"):
-        interpreter.set_tensor(input_details[0]['index'], img_array)
-        interpreter.invoke()
-        predictions = interpreter.get_tensor(output_details[0]['index'])[0]
+        input_name = input_info.name
+        predictions = session.run(None, {input_name: img_array})[0]
         
-        idx = np.argmax(predictions)
-        confidence = float(predictions[idx])
+        idx = np.argmax(predictions[0])
+        confidence = float(predictions[0][idx])
         
         st.markdown(f"### > {CLASS_NAMES[idx]}")
         st.caption(f"confidence: {confidence:.2%}")
         
         st.markdown("---")
         st.markdown("> top 5")
-        top5_idx = np.argsort(predictions)[-5:][::-1]
+        top5_idx = np.argsort(predictions[0])[-5:][::-1]
         for i, idx in enumerate(top5_idx, 1):
-            prob = float(predictions[idx])
+            prob = float(predictions[0][idx])
             st.progress(prob, text=f"{i}. {CLASS_NAMES[idx]} - {prob:.2%}")
 
 st.markdown("---")
