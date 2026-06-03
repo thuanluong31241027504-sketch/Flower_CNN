@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
-import io
+import onnxruntime as ort
 import os
 
 st.set_page_config(
@@ -77,27 +77,25 @@ st.markdown("""
 
 st.markdown('<div class="main-title">flower recognition<span class="blinking-cursor">_</span></div>', unsafe_allow_html=True)
 
-# Fake model với session state để luân phiên
-if 'fake_counter' not in st.session_state:
-    st.session_state.fake_counter = 0
+MODEL_FILE = "flowerpro.onnx"
 
-class FakeSession:
-    def get_inputs(self):
-        return [type('obj', (object,), {'name': 'input', 'shape': [1, 128, 128, 3]})()]
-    
-    def run(self, output_names, input_feed):
-        st.session_state.fake_counter += 1
-        # Lần 1,3,5: Tulip (index 4)
-        if st.session_state.fake_counter % 2 == 1:
-            return [np.array([[0.05, 0.05, 0.05, 0.05, 0.80]], dtype=np.float32)]
-        # Lần 2,4,6: Bo Cong Anh (index 1)
-        else:
-            return [np.array([[0.05, 0.80, 0.05, 0.05, 0.05]], dtype=np.float32)]
+@st.cache_resource
+def load_model():
+    if os.path.exists(MODEL_FILE):
+        return ort.InferenceSession(MODEL_FILE)
+    return None
 
-session = FakeSession()
+session = load_model()
+
+if session is None:
+    st.error("flowerpro.onnx not found")
+    st.stop()
+
 input_info = session.get_inputs()[0]
-target_size = (128, 128)
+input_shape = input_info.shape
+target_size = (input_shape[1], input_shape[2])
 
+CLASS_NAMES = ['daisy', 'dandelion', 'rose', 'sunflower', 'tulip']
 DISPLAY_NAMES = ['Hoa Cuc Daisy', 'Hoa Bo Cong Anh', 'Hoa Hong', 'Hoa Huong Duong', 'Hoa Tulip']
 
 FLOWER_INFO = {
@@ -128,6 +126,14 @@ FLOWER_INFO = {
     }
 }
 
+def preprocess_image(img):
+    if img.mode == 'RGBA':
+        img = img.convert('RGB')
+    img = img.resize(target_size)
+    img_array = np.array(img).astype(np.float32) / 255.0
+    img_array = np.expand_dims(img_array, axis=0)
+    return img_array
+
 col_left, col_right = st.columns([0.5, 0.5])
 
 with col_left:
@@ -139,7 +145,9 @@ with col_left:
         st.image(img, width=250)
         
         if st.button("predict"):
-            predictions = session.run(None, {input_info.name: None})[0][0]
+            img_array = preprocess_image(img)
+            input_name = input_info.name
+            predictions = session.run(None, {input_name: img_array})[0][0]
             
             st.markdown("---")
             st.markdown("xac suat tung loai hoa")
